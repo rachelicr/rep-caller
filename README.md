@@ -7,7 +7,7 @@ It runs entirely in the browser as a single HTML file — no server, no account,
 ## Using it on Android
 
 1. Open the app's URL in Chrome.
-2. Tap the ⋮ menu → **Add to Home screen**. It will launch full-screen like a normal app.
+2. Tap the ⋮ menu → **Install app** (older Chrome versions say **Add to Home screen**). It will get its own icon and launch full-screen like a normal app.
 3. Tap **Start**. (Sound only works after a tap — that's a browser rule, not a bug.)
 
 The screen stays awake during a workout, but must stay on: if you blank the screen with the power button, counting pauses until you wake it. Prop the phone up where you can see the countdown.
@@ -32,6 +32,7 @@ This announces "Squats", then counts 20 down to 0 speaking one number every 2 se
 Notes:
 
 - The name can be a whole phrase — `And now for squats, 10, 2` is spoken (and displayed) in full. No commas within the name, since commas separate the three parts. Full stops in the name create spoken pauses.
+- A count of **0** makes an announce-only step: the name is spoken, then the app waits the given seconds in silence before moving on. Good for transitions and rests — `Lie down, 0, 10` says "Lie down" and gives you 10 quiet seconds to get there.
 - Seconds can be decimal (`1.5`).
 - **Save routine** stores the list on your phone. **New** creates another routine (e.g. Morning / Evening); switch between routines with the dropdown in the header. **Delete** removes the current routine (you always keep at least one).
 
@@ -57,4 +58,6 @@ Routines and the voice choice are kept in the browser's localStorage under the k
 
 ## Hacking on it
 
-Everything — markup, styles, logic — is in `index.html`. Edit it on GitHub, commit, and the live site updates in about a minute. Your saved routines survive app updates, since they live in your browser, not in the file.
+The app — markup, styles, logic — is entirely in `index.html`. Edit it on GitHub, commit, and the live site updates in about a minute. Your saved routines survive app updates, since they live in your browser, not in the file.
+
+The other files support installation: `manifest.json` tells Android the app's name, colours, and icon when it's added to the home screen, and `icon-192.png` / `icon-512.png` are that icon at the two sizes Android wants. If you change the icons or the manifest, note that existing home-screen shortcuts keep their old icon — remove and re-add the shortcut to pick up changes.
