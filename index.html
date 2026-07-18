@@ -265,7 +265,8 @@
   <input id="profile-name" type="text" maxlength="30" autocomplete="off">
   <label for="config">
     One exercise per line: <code>Name, reps, seconds between counts</code><br>
-    Example: <code>Squats, 20, 2</code> counts 20 down to 0, one number every 2 seconds.
+    Example: <code>Squats, 20, 2</code> counts 20 down to 0, one number every 2 seconds.<br>
+    Use 0 reps for a spoken instruction with a silent wait: <code>Lie down, 0, 10</code>.
   </label>
   <textarea id="config" spellcheck="false"></textarea>
   <div id="config-error"></div>
@@ -369,7 +370,7 @@
       var reps = parseInt(parts[1], 10);
       var secs = parseFloat(parts[2]);
       if (!parts[0]) return { error: "Line " + (i + 1) + ": name is empty." };
-      if (!(reps > 0)) return { error: "Line " + (i + 1) + ": reps must be a positive whole number." };
+      if (!(reps >= 0)) return { error: "Line " + (i + 1) + ": reps must be 0 or a positive whole number." };
       if (!(secs > 0)) return { error: "Line " + (i + 1) + ": seconds must be a positive number." };
       out.push({ name: parts[0], reps: reps, interval: secs });
     }
@@ -485,10 +486,24 @@
     els.exerciseName.textContent = ex.name;
     els.statusLine.textContent = "Exercise " + (currentIndex + 1) + " of " + exercises.length;
     els.count.classList.remove("done");
-    renderCount(ex);
     var next = exercises[currentIndex + 1];
     els.upNext.textContent = next ? "Up next: " + next.name : "Last one!";
 
+    if (ex.reps === 0) {
+      // Announce-only step: say the name, wait the interval, don't count.
+      els.count.textContent = "\u2014";
+      els.barFill.style.width = "0%";
+      speak(ex.name);
+      later(function () {
+        if (!running || paused) return;
+        currentIndex++;
+        if (currentIndex >= exercises.length) finishWorkout();
+        else runExercise();
+      }, ex.interval * 1000);
+      return;
+    }
+
+    renderCount(ex);
     speak(ex.name);
     later(function () { tick(ex); }, ANNOUNCE_PAUSE_MS);
   }
@@ -532,6 +547,7 @@
     els.startBtn.textContent = "Pause";
     var ex = exercises[currentIndex];
     els.statusLine.textContent = "Exercise " + (currentIndex + 1) + " of " + exercises.length;
+    if (ex.reps === 0) { runExercise(); return; } // restart the rest step
     later(function () { tick(ex); }, 600);
   }
 
