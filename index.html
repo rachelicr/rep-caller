@@ -200,6 +200,24 @@
     resize: none;
   }
   #config-error { color: #ff8c7a; font-size: 13px; min-height: 1.3em; }
+  .voice-row { display: flex; gap: 10px; }
+  #voice-select {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+    padding: 10px 12px;
+    min-width: 0;
+  }
+  #voice-test-btn {
+    font: inherit; font-size: 14px; font-weight: 600;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 16px; cursor: pointer;
+  }
   .settings-actions { display: flex; gap: 10px; }
   #save-btn {
     font: inherit; font-size: 16px; font-weight: 600;
@@ -248,6 +266,11 @@
   </label>
   <textarea id="config" spellcheck="false"></textarea>
   <div id="config-error"></div>
+  <label class="field-label" for="voice-select">Voice (applies to all routines)</label>
+  <div class="voice-row">
+    <select id="voice-select"></select>
+    <button id="voice-test-btn" type="button">Test</button>
+  </div>
   <div class="settings-actions">
     <button id="save-btn">Save routine</button>
     <button id="new-btn" class="ghost-btn">New</button>
@@ -271,7 +294,8 @@
   var els = {};
   ["workout-view","settings","controls","edit-btn","save-btn","new-btn","delete-btn",
    "config","config-error","status-line","exercise-name","count","bar-fill","up-next",
-   "start-btn","skip-btn","stop-btn","profile-select","profile-name"]
+   "start-btn","skip-btn","stop-btn","profile-select","profile-name",
+   "voice-select","voice-test-btn"]
     .forEach(function (id) {
       els[id.replace(/-([a-z])/g, function (_, c) { return c.toUpperCase(); })] =
         document.getElementById(id);
@@ -351,10 +375,49 @@
   }
 
   // ---------- speech ----------
+  // Voices load asynchronously in most browsers: getVoices() can return an
+  // empty list at first, then the voiceschanged event fires when ready.
+  var voiceList = [];
+  function refreshVoices() {
+    if (!("speechSynthesis" in window)) return;
+    voiceList = window.speechSynthesis.getVoices();
+    populateVoiceSelect();
+  }
+  if ("speechSynthesis" in window) {
+    window.speechSynthesis.onvoiceschanged = refreshVoices;
+  }
+
+  function populateVoiceSelect() {
+    var store = loadStore();
+    els.voiceSelect.innerHTML = "";
+    var def = document.createElement("option");
+    def.value = "";
+    def.textContent = "Phone default";
+    els.voiceSelect.appendChild(def);
+    voiceList.forEach(function (v) {
+      var opt = document.createElement("option");
+      opt.value = v.name;
+      opt.textContent = v.name + " (" + v.lang + ")";
+      if (v.name === store.voice) opt.selected = true;
+      els.voiceSelect.appendChild(opt);
+    });
+  }
+
+  function chosenVoice() {
+    var store = loadStore();
+    if (!store.voice) return null;
+    for (var i = 0; i < voiceList.length; i++) {
+      if (voiceList[i].name === store.voice) return voiceList[i];
+    }
+    return null; // saved voice not on this device: fall back to default
+  }
+
   function speak(text) {
     if (!("speechSynthesis" in window)) return;
     var u = new SpeechSynthesisUtterance(text);
     u.rate = 1.0;
+    var v = chosenVoice();
+    if (v) u.voice = v;
     window.speechSynthesis.speak(u);
   }
 
@@ -418,7 +481,7 @@
     var next = exercises[currentIndex + 1];
     els.upNext.textContent = next ? "Up next: " + next.name : "Last one!";
 
-    speak("And now for " + ex.name);
+    speak(ex.name);
     later(function () { tick(ex); }, ANNOUNCE_PAUSE_MS);
   }
 
@@ -535,7 +598,18 @@
 
   els.editBtn.addEventListener("click", function () {
     if (els.settings.classList.contains("open")) closeSettings();
-    else { if (running) stopWorkout(); openSettings(false); }
+    else { if (running) stopWorkout(); refreshVoices(); openSettings(false); }
+  });
+
+  els.voiceSelect.addEventListener("change", function () {
+    var store = loadStore();
+    store.voice = els.voiceSelect.value; // "" means phone default
+    saveStore(store);
+  });
+
+  els.voiceTestBtn.addEventListener("click", function () {
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    speak("Squats. 3. 2. 1.");
   });
 
   els.newBtn.addEventListener("click", function () { openSettings(true); });
@@ -589,6 +663,7 @@
   els.stopBtn.addEventListener("click", stopWorkout);
 
   refreshProfileSelect();
+  refreshVoices();
 })();
 </script>
 </body>
