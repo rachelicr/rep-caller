@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#10141c">
+<title>Rep Caller</title>
+<style>
+  :root {
+    --bg: #10141c;
+    --panel: #1a2029;
+    --line: #2b3442;
+    --amber: #ffb340;
+    --amber-dim: #7a5620;
+    --text: #e8e4da;
+    --muted: #8b93a1;
+    --green: #7dd87d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 14px 18px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 {
+    font-size: 15px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  header h1 span { color: var(--amber); }
+  #edit-btn {
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font: inherit;
+    font-size: 13px;
+    padding: 5px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  #edit-btn:focus-visible, button:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
+  }
+
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+    gap: 6px;
+  }
+
+  #exercise-name {
+    font-size: clamp(26px, 7vw, 44px);
+    font-weight: 600;
+    min-height: 1.3em;
+  }
+  #status-line {
+    color: var(--muted);
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    min-height: 1.4em;
+  }
+
+  /* The signature: LED-style countdown digits */
+  #count {
+    font-family: "SF Mono", "Cascadia Mono", Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: clamp(110px, 38vw, 220px);
+    font-weight: 700;
+    line-height: 1;
+    color: var(--amber);
+    text-shadow: 0 0 22px rgba(255, 179, 64, 0.35);
+    margin: 8px 0 4px;
+  }
+  #count.done { color: var(--green); text-shadow: 0 0 22px rgba(125, 216, 125, 0.35); }
+
+  #bar-track {
+    width: min(72vw, 340px);
+    height: 5px;
+    background: var(--panel);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  #bar-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--amber-dim);
+    border-radius: 999px;
+    transition: width 0.4s linear;
+  }
+
+  #up-next {
+    color: var(--muted);
+    font-size: 14px;
+    min-height: 1.4em;
+    margin-top: 10px;
+  }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    padding: 18px;
+    padding-bottom: max(18px, env(safe-area-inset-bottom));
+  }
+  .controls button {
+    font: inherit;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 16px 0;
+    border-radius: 14px;
+    border: none;
+    cursor: pointer;
+    flex: 1;
+    max-width: 220px;
+  }
+  #start-btn { background: var(--amber); color: #241a05; }
+  #skip-btn, #stop-btn { background: var(--panel); color: var(--text); border: 1px solid var(--line); }
+  button:disabled { opacity: 0.35; cursor: default; }
+
+  /* Settings sheet */
+  #settings {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    padding: 20px 18px;
+    gap: 14px;
+    max-width: 560px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  #settings.open { display: flex; }
+  #settings label {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  #settings code {
+    color: var(--amber);
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 12px;
+  }
+  #config {
+    flex: 1;
+    min-height: 200px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 15px;
+    line-height: 1.9;
+    padding: 14px;
+    resize: none;
+  }
+  #config-error { color: #ff8c7a; font-size: 13px; min-height: 1.3em; }
+  #save-btn {
+    font: inherit; font-size: 16px; font-weight: 600;
+    background: var(--amber); color: #241a05;
+    border: none; border-radius: 12px; padding: 14px; cursor: pointer;
+  }
+  .hidden { display: none !important; }
+
+  @media (prefers-reduced-motion: reduce) {
+    #bar-fill { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Rep <span>Caller</span></h1>
+  <button id="edit-btn">Edit list</button>
+</header>
+
+<main id="workout-view">
+  <div id="status-line">Ready</div>
+  <div id="exercise-name">—</div>
+  <div id="count">0</div>
+  <div id="bar-track"><div id="bar-fill"></div></div>
+  <div id="up-next"></div>
+</main>
+
+<section id="settings">
+  <label for="config">
+    One exercise per line: <code>Name, reps, seconds between counts</code><br>
+    Example: <code>Squats, 20, 2</code> counts 20 down to 0, one number every 2 seconds.
+  </label>
+  <textarea id="config" spellcheck="false"></textarea>
+  <div id="config-error"></div>
+  <button id="save-btn">Save list</button>
+</section>
+
+<div class="controls" id="controls">
+  <button id="start-btn">Start</button>
+  <button id="skip-btn" disabled>Skip</button>
+  <button id="stop-btn" disabled>Stop</button>
+</div>
+
+<script>
+(function () {
+  var STORAGE_KEY = "repCallerConfig";
+  var DEFAULT_CONFIG = "Squats, 20, 2\nLunges, 10, 5";
+  var ANNOUNCE_PAUSE_MS = 1800; // gap after "And now for..." before counting starts
+  var BETWEEN_EXERCISES_MS = 2500;
+
+  var els = {
+    workout: document.getElementById("workout-view"),
+    settings: document.getElementById("settings"),
+    controls: document.getElementById("controls"),
+    editBtn: document.getElementById("edit-btn"),
+    saveBtn: document.getElementById("save-btn"),
+    config: document.getElementById("config"),
+    configError: document.getElementById("config-error"),
+    status: document.getElementById("status-line"),
+    name: document.getElementById("exercise-name"),
+    count: document.getElementById("count"),
+    barFill: document.getElementById("bar-fill"),
+    upNext: document.getElementById("up-next"),
+    startBtn: document.getElementById("start-btn"),
+    skipBtn: document.getElementById("skip-btn"),
+    stopBtn: document.getElementById("stop-btn")
+  };
+
+  var timers = [];
+  var running = false;
+  var paused = false;
+  var exercises = [];
+  var currentIndex = 0;
+  var currentValue = 0;
+  var wakeLock = null;
+
+  // ---------- config ----------
+  function loadConfigText() {
+    try {
+      return localStorage.getItem(STORAGE_KEY) || DEFAULT_CONFIG;
+    } catch (e) {
+      return DEFAULT_CONFIG;
+    }
+  }
+
+  function parseConfig(text) {
+    var lines = text.split("\n");
+    var out = [];
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line) continue;
+      var parts = line.split(",").map(function (p) { return p.trim(); });
+      if (parts.length !== 3) {
+        return { error: "Line " + (i + 1) + " needs exactly 3 parts: Name, reps, seconds." };
+      }
+      var reps = parseInt(parts[1], 10);
+      var secs = parseFloat(parts[2]);
+      if (!parts[0]) return { error: "Line " + (i + 1) + ": name is empty." };
+      if (!(reps > 0)) return { error: "Line " + (i + 1) + ": reps must be a positive whole number." };
+      if (!(secs > 0)) return { error: "Line " + (i + 1) + ": seconds must be a positive number." };
+      out.push({ name: parts[0], reps: reps, interval: secs });
+    }
+    if (out.length === 0) return { error: "Add at least one exercise line." };
+    return { list: out };
+  }
+
+  // ---------- speech ----------
+  function speak(text) {
+    if (!("speechSynthesis" in window)) return;
+    var u = new SpeechSynthesisUtterance(text);
+    u.rate = 1.0;
+    window.speechSynthesis.speak(u);
+  }
+
+  // ---------- wake lock (keep screen on during workout) ----------
+  function requestWakeLock() {
+    if ("wakeLock" in navigator) {
+      navigator.wakeLock.request("screen").then(function (wl) {
+        wakeLock = wl;
+      }).catch(function () { /* not critical */ });
+    }
+  }
+  function releaseWakeLock() {
+    if (wakeLock) { wakeLock.release().catch(function () {}); wakeLock = null; }
+  }
+  document.addEventListener("visibilitychange", function () {
+    if (running && document.visibilityState === "visible") requestWakeLock();
+  });
+
+  // ---------- timers ----------
+  function later(fn, ms) {
+    var id = setTimeout(fn, ms);
+    timers.push(id);
+    return id;
+  }
+  function clearAllTimers() {
+    timers.forEach(clearTimeout);
+    timers = [];
+  }
+
+  // ---------- workout flow ----------
+  function startWorkout() {
+    var parsed = parseConfig(loadConfigText());
+    if (parsed.error) {
+      openSettings();
+      els.configError.textContent = parsed.error;
+      return;
+    }
+    exercises = parsed.list;
+    currentIndex = 0;
+    running = true;
+    paused = false;
+    els.startBtn.textContent = "Pause";
+    els.skipBtn.disabled = false;
+    els.stopBtn.disabled = false;
+    requestWakeLock();
+    // A user-gesture-triggered utterance unlocks speech on mobile browsers.
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    runExercise();
+  }
+
+  function runExercise() {
+    if (!running) return;
+    if (currentIndex >= exercises.length) { finishWorkout(); return; }
+
+    var ex = exercises[currentIndex];
+    currentValue = ex.reps;
+    els.name.textContent = ex.name;
+    els.status.textContent = "Exercise " + (currentIndex + 1) + " of " + exercises.length;
+    els.count.classList.remove("done");
+    renderCount(ex);
+    var next = exercises[currentIndex + 1];
+    els.upNext.textContent = next ? "Up next: " + next.name : "Last one!";
+
+    speak("And now for " + ex.name);
+    later(function () { tick(ex); }, ANNOUNCE_PAUSE_MS);
+  }
+
+  function tick(ex) {
+    if (!running) return;
+    if (paused) return; // resume() restarts the tick chain
+    renderCount(ex);
+    speak(String(currentValue));
+
+    if (currentValue <= 0) {
+      els.count.classList.add("done");
+      currentIndex++;
+      if (currentIndex >= exercises.length) {
+        later(finishWorkout, 1200);
+      } else {
+        later(runExercise, BETWEEN_EXERCISES_MS);
+      }
+      return;
+    }
+    currentValue--;
+    later(function () { tick(ex); }, ex.interval * 1000);
+  }
+
+  function renderCount(ex) {
+    els.count.textContent = currentValue;
+    var progress = ((ex.reps - currentValue) / ex.reps) * 100;
+    els.barFill.style.width = progress + "%";
+  }
+
+  function pauseWorkout() {
+    paused = true;
+    clearAllTimers();
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    els.startBtn.textContent = "Resume";
+    els.status.textContent = "Paused";
+  }
+
+  function resumeWorkout() {
+    paused = false;
+    els.startBtn.textContent = "Pause";
+    var ex = exercises[currentIndex];
+    els.status.textContent = "Exercise " + (currentIndex + 1) + " of " + exercises.length;
+    later(function () { tick(ex); }, 600);
+  }
+
+  function skipExercise() {
+    if (!running) return;
+    clearAllTimers();
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    currentIndex++;
+    paused = false;
+    els.startBtn.textContent = "Pause";
+    runExercise();
+  }
+
+  function finishWorkout() {
+    speak("Workout complete. Well done.");
+    els.status.textContent = "Complete";
+    els.name.textContent = "Well done!";
+    els.upNext.textContent = "";
+    resetControls();
+  }
+
+  function stopWorkout() {
+    clearAllTimers();
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    els.status.textContent = "Ready";
+    els.name.textContent = "—";
+    els.count.textContent = "0";
+    els.count.classList.remove("done");
+    els.barFill.style.width = "0%";
+    els.upNext.textContent = "";
+    resetControls();
+  }
+
+  function resetControls() {
+    running = false;
+    paused = false;
+    els.startBtn.textContent = "Start";
+    els.skipBtn.disabled = true;
+    els.stopBtn.disabled = true;
+    releaseWakeLock();
+  }
+
+  // ---------- settings UI ----------
+  function openSettings() {
+    els.config.value = loadConfigText();
+    els.configError.textContent = "";
+    els.settings.classList.add("open");
+    els.workout.classList.add("hidden");
+    els.controls.classList.add("hidden");
+    els.editBtn.textContent = "Cancel";
+  }
+  function closeSettings() {
+    els.settings.classList.remove("open");
+    els.workout.classList.remove("hidden");
+    els.controls.classList.remove("hidden");
+    els.editBtn.textContent = "Edit list";
+  }
+
+  els.editBtn.addEventListener("click", function () {
+    if (els.settings.classList.contains("open")) closeSettings();
+    else { if (running) { stopWorkout(); } openSettings(); }
+  });
+
+  els.saveBtn.addEventListener("click", function () {
+    var parsed = parseConfig(els.config.value);
+    if (parsed.error) { els.configError.textContent = parsed.error; return; }
+    try { localStorage.setItem(STORAGE_KEY, els.config.value.trim()); } catch (e) {}
+    closeSettings();
+  });
+
+  els.startBtn.addEventListener("click", function () {
+    if (!running) startWorkout();
+    else if (paused) resumeWorkout();
+    else pauseWorkout();
+  });
+  els.skipBtn.addEventListener("click", skipExercise);
+  els.stopBtn.addEventListener("click", stopWorkout);
+})();
+</script>
+</body>
+</html>
