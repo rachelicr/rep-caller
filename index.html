@@ -263,8 +263,7 @@
 
 <script>
 (function () {
-  var STORE_KEY = "repCallerProfiles";   // v2 storage
-  var LEGACY_KEY = "repCallerConfig";    // v1 storage (migrated on first run)
+  var STORE_KEY = "repCallerProfiles";
   var DEFAULT_CONFIG = "Squats, 20, 2\nLunges, 10, 5";
   var ANNOUNCE_PAUSE_MS = 1800;
   var BETWEEN_EXERCISES_MS = 2500;
@@ -297,12 +296,9 @@
     } catch (e) { store = null; }
 
     if (!store || !store.profiles || Object.keys(store.profiles).length === 0) {
-      // Migrate v1 data if present, else default.
-      var legacy = null;
-      try { legacy = localStorage.getItem(LEGACY_KEY); } catch (e) {}
       var name = "My routine";
       var profiles = {};
-      profiles[name] = legacy || DEFAULT_CONFIG;
+      profiles[name] = DEFAULT_CONFIG;
       store = { active: name, profiles: profiles };
       saveStore(store);
     }
