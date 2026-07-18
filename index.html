@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#10141c">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Rep Caller</title>
 <style>
   :root {
@@ -406,6 +409,11 @@
   function chosenVoice() {
     var store = loadStore();
     if (!store.voice) return null;
+    if (voiceList.length === 0 && "speechSynthesis" in window) {
+      // Some Android Chrome versions report no voices at page load and
+      // never fire voiceschanged; re-query at the moment we need them.
+      voiceList = window.speechSynthesis.getVoices();
+    }
     for (var i = 0; i < voiceList.length; i++) {
       if (voiceList[i].name === store.voice) return voiceList[i];
     }
@@ -417,7 +425,7 @@
     var u = new SpeechSynthesisUtterance(text);
     u.rate = 1.0;
     var v = chosenVoice();
-    if (v) u.voice = v;
+    if (v) { u.voice = v; u.lang = v.lang; }
     window.speechSynthesis.speak(u);
   }
 
