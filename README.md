@@ -49,12 +49,16 @@ More voices can be added to the phone under Settings → Text-to-speech output �
 - **Stop** — ends the session.
 - The progress bar under the number shows how far through the current exercise you are.
 
+## The log
+
+Tap **Log** in the header to see a plain list of completed workouts — date, time, and routine name, newest first. Only finished workouts are recorded; stopping mid-session logs nothing. That's all it does: it answers "when did I last do it?"
+
 ## Where your data lives
 
-Routines and the voice choice are kept in the browser's localStorage under the key `repCallerProfiles`, on your device only. Nothing is sent anywhere. Two consequences:
+Routines, the voice choice, and the workout log are kept in the browser's localStorage under the key `repCallerProfiles`, on your device only. Nothing is sent anywhere. Two consequences:
 
 - Different browsers or devices each have their own separate routines — nothing syncs.
-- Clearing the browser's site data erases your routines. They're short, so keep a copy of the lines in a notes app if you'd miss them.
+- Clearing the browser's site data erases your routines and log. The routines are short, so keep a copy of the lines in a notes app if you'd miss them.
 
 ## Hacking on it
 
